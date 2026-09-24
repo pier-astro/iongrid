@@ -17,3 +17,8 @@ examples/cloudy-sim/points/
 examples/cloudy-sim/htc_submit/
 examples/cloudy-sim/results/
 examples/cloudy-sim/*.log
+examples/xstar-sim/manifest.csv
+examples/xstar-sim/points/
+examples/xstar-sim/htc_submit/
+examples/xstar-sim/results/
+examples/xstar-sim/*.log

@@ -1,15 +1,9 @@
-"""Pack CLOUDY point caches using the common iongrid FITS cube writer."""
+"""Pack XSTAR point caches using the common iongrid FITS cube writer."""
 
 from pathlib import Path
 
-from iongrid.cube import read_fits_cube_grid as _read_grid
 from iongrid.cube import write_fits_cube as _write_cube
 from .grid import read_manifest
-
-
-def read_fits_cube_grid(manifest_path: str | Path, npz_key: str):
-    manifest_path = Path(manifest_path)
-    return _read_grid(read_manifest(manifest_path), manifest_path.parent, npz_key)
 
 
 def write_fits_cube(
@@ -20,5 +14,6 @@ def write_fits_cube(
     return _write_cube(
         read_manifest(manifest_path), manifest_path.parent, output_path,
         npz_key=npz_key, quantity=quantity, unit=unit,
-        overwrite=overwrite, engine="CLOUDY", reference_distance_kpc=10.0,
+        overwrite=overwrite, engine="XSTAR", reference_distance_kpc=1.0,
+        reference_luminosity_erg_s=1e38,
     )

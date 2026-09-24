@@ -24,7 +24,7 @@ def write_ogip_table(
     Parameters
     ----------
     cube_path
-        FITS cube written by ``iongrid.cloudy.cube.write_fits_cube``.
+        FITS cube written by an iongrid engine adapter.
     output_path
         Output XSPEC table model path.
     model_name
@@ -92,6 +92,9 @@ def write_ogip_table(
         primary.header["SOURCE"] = cube_path.name
         primary.header["ORIGIN"] = "iongrid"
         primary.header["IGFMTVER"] = SCHEMA_VERSION
+        for key in ("ENGINE", "REFDIST", "REFLUM"):
+            if key in hdul[0].header:
+                primary.header[key] = hdul[0].header[key]
 
         all_names = ["logxi", "vturb", "lognH"]
         all_units = ["", "km/s", "cm-2"]

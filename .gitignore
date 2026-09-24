@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+.DS_Store
+runs/
+/.agents/
+/AGENTS.md
+
+# Generated products from a copied simulation recipe
+examples/cloudy-sim/manifest.csv
+examples/cloudy-sim/cloudy-template.in
+examples/cloudy-sim/points/
+examples/cloudy-sim/htc_submit/
+examples/cloudy-sim/results/
+examples/cloudy-sim/*.log

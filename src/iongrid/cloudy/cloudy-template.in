@@ -1,0 +1,53 @@
+title {title}  
+# --- Incident Radiation Field ---
+{sed_command}
+xi {logxi} log  
+hden {log_density} log
+#
+# --- Plane-Parallel Geometry ---  
+radius 16
+constant density  
+turbulence {vturb} km/s no pressure  
+abundances old solar 84
+#
+# --- Stopping Criteria (Dynamic Slab Boundary) ---  
+stop column density {log_nh} log  # stopping column density axis
+#
+# --- Solver Controls ---  
+iterate to convergence      # Ensures stable level populations
+#
+# --- Minimize print overhead ---  
+print line faint -2  
+print line column  
+print line sort wavelength
+#
+# --- Spectroscopic Outputs & Resolution ---
+set continuum resolution 4
+database H-like Lyman extra 1000
+database He-like Lyman extra 1000
+set save line width suppress
+#
+# --- Saves ---  
+# 1. File for gas temperature and ionization fractions  
+save overview last "{overview_file}"
+#
+# 1b. Species abundances
+save species abundances last "{species_abundance_file}"
+#
+# 1c. Line list emergent intensities
+save lines intensity last "{line_list_file}" emergent absolute column
+#
+# 1d. Line labels for transition identification
+save line labels "{line_labels_file}"
+#
+# 2. Total Absorption (Continuum + Lines) -> gives Incident and Transmitted Incident Continuum
+save continuum last "{continuum_file}" units kev
+#
+# 2b. Raw continuum components for diffuse reflection split
+save continuum raw last "{raw_file}" units kev
+#
+# 4. Optical depths for absorption, scattering, and total
+save optical depths last "{optical_depth_file}" units kev
+#
+# 5. Fine optical depths for resonance lines
+save fine optical depths last "{fine_optical_depth_file}" range 0.05 to 15 keV units kev

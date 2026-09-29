@@ -281,6 +281,27 @@ def compile_node(node_dir: str | Path, energy_grid: np.ndarray = ENERGY_GRID):
     if not in_file.exists():
         raise FileNotFoundError(f"Missing input deck file: {in_file}")
     in_text = in_file.read_text(encoding="utf-8")
+    out_file = node_dir / f"{point_id}.out"
+    emission_input = None
+    if out_file.exists():
+        out_text = out_file.read_text(encoding="utf-8", errors="replace")
+        reported_units = {unit.lower() for unit in re.findall(
+            r"^\s*(Intensity \(erg/s/cm\^2\)|Luminosity \(erg/s\))(?=\s|\.|$)",
+            out_text, re.IGNORECASE | re.MULTILINE,
+        )}
+        if len(reported_units) > 1:
+            raise ValueError(f"Conflicting CLOUDY emission units in {out_file}")
+        if reported_units:
+            emission_input = "intensity" if next(iter(reported_units)).startswith("intensity") else "luminosity"
+    if emission_input is None:
+        commands = re.findall(r"^\s*(xi|luminosity)\s+", in_text, re.IGNORECASE | re.MULTILINE)
+        if len(commands) == 1:
+            emission_input = "intensity" if commands[0].lower() == "xi" else "luminosity"
+        else:
+            marker = re.search(r"^\s*#\s*iongrid emission input:\s*(intensity|luminosity)\s*$", in_text, re.IGNORECASE | re.MULTILINE)
+            if marker is None or len(commands) > 1:
+                raise ValueError(f"Cannot identify CLOUDY emission units in {out_file} or {in_file}; add '# iongrid emission input: intensity' (or luminosity) to the deck")
+            emission_input = marker.group(1).lower()
     hden_match = re.search(r"hden\s+([0-9.-]+)\s+log", in_text)
     if not hden_match:
         raise ValueError(f"Could not parse hden from {in_file}")
@@ -369,23 +390,23 @@ def compile_node(node_dir: str | Path, energy_grid: np.ndarray = ENERGY_GRID):
     tau_scattering = bin_average(e_high, tau_scattering_high, energy_grid).astype(np.float32)
     tau_total = tau_absorption + tau_scattering
 
-    # Parse inner radius R_in from the .in file (default to 1e16 cm)
-    radius_match = re.search(r"radius\s+([0-9.eE+-]+)", in_text)
-    if radius_match:
-        val_str = radius_match.group(1)
-        try:
-            if "e" in val_str.lower() or "." in val_str:
-                r_in = float(val_str)
-            else:
-                r_in = 10.0**float(val_str)
-        except ValueError:
-            r_in = 1e16
-    else:
-        r_in = 1e16
+    radius_match = re.search(r"^\s*radius\s+([0-9.eE+-]+)([^\n]*)", in_text, re.IGNORECASE | re.MULTILINE)
+    if radius_match is None:
+        raise ValueError(f"A CLOUDY radius is required to export full-shell emission: {in_file}")
+    radius_options = radius_match.group(2).split("#", 1)[0].lower()
+    radius_value = float(radius_match.group(1))
+    r_in = radius_value if "linear" in radius_options else 10.0**radius_value
+    if "parsec" in radius_options:
+        r_in *= 3.085677581491367e18
+    if not np.isfinite(r_in) or r_in <= 0:
+        raise ValueError(f"Invalid CLOUDY radius in {in_file}")
 
     D_10KPC_CM = 3.085677581491367e22
     C_KEV_TO_ERG = 1.602176634e-9
-    dilution = (r_in / D_10KPC_CM) ** 2
+    if emission_input == "intensity":
+        dilution = (r_in / D_10KPC_CM) ** 2
+    else:
+        dilution = 1.0 / (4.0 * np.pi * D_10KPC_CM**2)
 
     bin_widths = np.diff(bin_edges(energy_grid))
     photon_conversion_high = dilution / (e_high * C_KEV_TO_ERG)
@@ -399,8 +420,9 @@ def compile_node(node_dir: str | Path, energy_grid: np.ndarray = ENERGY_GRID):
     ).astype(np.float32)
     emt_total = emt_continuum + emt_lines
 
-    inc_interp = bin_average(e_high, inc_high, energy_grid).astype(np.float32)
-    trans_interp = bin_average(e_high, trans_high, energy_grid).astype(np.float32)
+    diagnostic_dtype = np.float64 if emission_input == "luminosity" else np.float32
+    inc_interp = bin_average(e_high, inc_high, energy_grid).astype(diagnostic_dtype)
+    trans_interp = bin_average(e_high, trans_high, energy_grid).astype(diagnostic_dtype)
 
     # 11. Create metadata record
     metadata = np.array(
@@ -431,5 +453,3 @@ def compile_node(node_dir: str | Path, energy_grid: np.ndarray = ENERGY_GRID):
         transmitted=trans_interp,
         metadata=metadata,
     )
-
-

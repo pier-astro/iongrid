@@ -29,6 +29,7 @@ The output path is `manifest.csv` → `points/<point_id>/*.npz` → `results/*.f
 - [`docs/schema.md`](docs/schema.md): common node, cube and OGIP output schema, units and version marker.
 - [`docs/cloudy-outputs.md`](docs/cloudy-outputs.md): CLOUDY files read by the compiler and the resolution/runtime choices in the supplied template.
 - [`docs/xstar-outputs.md`](docs/xstar-outputs.md): XSTAR files read by the compiler, conversions and reference normalization.
+- [`docs/emission-normalization.md`](docs/emission-normalization.md): source luminosity, distance and covering factors for additive tables.
 - `src/iongrid/cloudy/`: manifest, local and HTCondor runners, CLOUDY spectrum extraction and cube packing.
 - `src/iongrid/xstar/`: the corresponding XSTAR workflow, including custom input SEDs.
 - `src/iongrid/cube.py`: common FITS cube writer.

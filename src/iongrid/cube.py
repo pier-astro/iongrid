@@ -42,8 +42,11 @@ def read_fits_cube_grid(
             if "schema_version" in data and int(data["schema_version"]) != SCHEMA_VERSION:
                 raise ValueError(f"Unsupported iongrid schema version in {npz_path}")
             node_energy = np.asarray(data["energy"], dtype=float)
-            if np.asarray(data[npz_key]).shape != node_energy.shape:
+            spectrum = np.asarray(data[npz_key])
+            if spectrum.shape != node_energy.shape:
                 raise ValueError(f"Spectrum and energy grid have different shapes in {npz_path}")
+            if not np.all(np.isfinite(spectrum)) or np.any(np.abs(spectrum) > np.finfo(np.float32).max):
+                raise ValueError(f"{npz_key} in {npz_path} cannot be stored as finite float32 FITS values")
 
         if energy is None:
             energy = node_energy

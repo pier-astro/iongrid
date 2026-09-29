@@ -131,6 +131,7 @@ def write_grid(
     vturb_values: list[float] | None = None,
     log_nh_values: list[float] | None = None,
     log_density: float = 10.0,
+    log_luminosity: float = 48.0,
     template_path: str | Path | None = None,
     *,
     sed_slope: float | None = None,
@@ -247,6 +248,8 @@ def write_grid(
                     "point_id": pid,
                     "logxi": f"{pt.logxi:.6g}",
                     "log_density": f"{pt.log_density:.6g}",
+                    "log_luminosity": f"{log_luminosity:.6g}",
+                    "log_radius": f"{(log_luminosity - pt.logxi - pt.log_density) / 2:.10f}",
                     "vturb": f"{pt.vturb:.6g}",
                     "log_nh": f"{pt.log_nh:.6g}",
                     "overview_file": f"{pid}.ovr",
@@ -355,6 +358,7 @@ def run_grid(
     vturb_values: list[float] | None = None,
     log_nh_values: list[float] | None = None,
     log_density: float = 10.0,
+    log_luminosity: float = 48.0,
     sed_slope: float | None = None,
     sed_file: str | Path | None = None,
     template_path: str | Path | None = None,
@@ -391,6 +395,8 @@ def run_grid(
         List of log(NH) values.
     log_density : float, default 10.0
         log(density) value.
+    log_luminosity : float, default 48.0
+        log of the 1-1000 Ryd luminosity in erg/s for the default template.
     sed_slope : float, optional
         Power law slope (default -0.8).
         Relation to Photon Index (PI) is: PI = 1 - alpha.
@@ -433,6 +439,7 @@ def run_grid(
             vturb_values=vturb_values,
             log_nh_values=log_nh_values,
             log_density=log_density,
+            log_luminosity=log_luminosity,
             sed_slope=sed_slope,
             sed_file=sed_file,
             template_path=template_path,
@@ -445,6 +452,7 @@ def run_grid(
             vturb_values=vturb_values,
             log_nh_values=log_nh_values,
             log_density=log_density,
+            log_luminosity=log_luminosity,
             sed_slope=sed_slope,
             sed_file=sed_file,
             template_path=template_path,

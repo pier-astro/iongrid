@@ -1,11 +1,11 @@
 title {title}  
 # --- Incident Radiation Field ---
 {sed_command}
-xi {logxi} log  
+luminosity {log_luminosity} range 1 to 1000 Ryd
 hden {log_density} log
 #
 # --- Plane-Parallel Geometry ---  
-radius 16
+radius {log_radius}
 constant density  
 turbulence {vturb} km/s no pressure  
 abundances old solar 84

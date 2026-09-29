@@ -11,13 +11,13 @@ Each `points/<point_id>/<point_id>.npz` contains an increasing one-dimensional `
 | `tau_total` | Total line-of-sight optical depth | dimensionless |
 | `tau_absorption`, `tau_scattering` | CLOUDY absorption and scattering components | dimensionless |
 | `emt_continuum`, `emt_lines`, `emt_total` | Diffuse emission components and total at the engine's stated reference | photons cm⁻² s⁻¹ per energy bin |
-| `incident`, `transmitted` | Input and transmitted spectra retained for diagnostics | native simulator units |
+| `incident`, `transmitted` | Input and transmitted spectra retained for diagnostics | native simulator units; CLOUDY luminosity-case caches use float64 |
 | `metadata` | Scalar point parameters; fields vary by engine | see below |
 | `schema_version` | Integer format version | — |
 
 The grid coordinates in `metadata` are `point_id`, `logxi`, `vturb` and `log_nh`; adapters can add fields such as `log_density`, temperature or input luminosity. `logxi` is log₁₀ of ξ in erg cm s⁻¹; `vturb` is km s⁻¹; `log_nh` is log₁₀ of column density in cm⁻². The comma-separated `manifest.csv` indexes point status (`ready`, `ok`, `failed`) and execution time in seconds. It is a run ledger, not the spectral interchange format.
 
-The supplied CLOUDY extraction expresses emission at 10 kpc. The XSTAR extraction follows the predecessor XSTAR-to-XSPEC convention: bin-integrated photon flux at 1 kpc for a reference luminosity of 10³⁸ erg s⁻¹. XSTAR caches also store `emission_reference_kpc` and `emission_reference_luminosity_erg_s`. These emission normalizations are different and must be accounted for when comparing additive spectra from the two engines. Optical depth is dimensionless.
+The CLOUDY extraction expresses full-covering emission at 10 kpc, retaining each node's simulated luminosity. It accepts CLOUDY surface intensities or already-integrated luminosities, identified from the `.out` emission-unit heading or, if absent, the retained input deck. Native luminosity-case `incident` and `transmitted` diagnostics can exceed float32; they remain float64 in `.npz` and cannot be packed into the float32 FITS cube without a separate unit conversion. The XSTAR extraction follows the predecessor XSTAR-to-XSPEC convention: bin-integrated photon flux at 1 kpc for a reference luminosity of 10³⁸ erg s⁻¹. XSTAR caches also store `emission_reference_kpc` and `emission_reference_luminosity_erg_s`. These emission normalizations are different and must be accounted for when comparing additive spectra from the two engines; see [emission normalization](emission-normalization.md). Optical depth is dimensionless.
 
 ## FITS cube
 

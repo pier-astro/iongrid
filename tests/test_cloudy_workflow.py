@@ -69,8 +69,8 @@ class CloudyUtilsTest(unittest.TestCase):
             self.assertTrue(first_input.exists())
             self.assertEqual(first_input.parent.name, rows[0]["point_id"])
             text = first_input.read_text(encoding="utf-8")
-            self.assertIn("xi 3 log", text)
-            self.assertIn("radius 16", text)
+            self.assertIn("luminosity 48 range 1 to 1000 Ryd", text)
+            self.assertIn("radius 17.5000000000", text)
             self.assertNotIn("thickness 7 log", text)
             self.assertIn("stop column density 21 log", text)
             self.assertIn('save optical depths last "', text)
@@ -81,6 +81,20 @@ class CloudyUtilsTest(unittest.TestCase):
             files = expected_files(first, Path(tmp))
             self.assertEqual(set(files), {"input", "stdout", "overview", "species_abundance", "line_list", "line_labels", "continuum", "raw", "optical_depth", "fine_optical_depth"})
             self.assertTrue((Path(tmp) / "cloudy-template.in").exists())
+
+    def test_default_grid_keeps_luminosity_fixed_across_xi(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = write_grid(tmp, logxi_values=[3.0, 6.5], vturb_values=[100.0], log_nh_values=[24.0])
+            decks = [point.filepath("in", tmp).read_text(encoding="utf-8") for point in read_manifest(manifest)]
+            self.assertTrue(all("luminosity 48 range 1 to 1000 Ryd" in deck for deck in decks))
+            self.assertIn("radius 17.5000000000", decks[0])
+            self.assertIn("radius 15.7500000000", decks[1])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = write_grid(tmp, logxi_values=[3.0], vturb_values=[100.0], log_nh_values=[24.0], log_luminosity=47.0)
+            deck = read_manifest(manifest)[0].filepath("in", tmp).read_text(encoding="utf-8")
+            self.assertIn("luminosity 47 range 1 to 1000 Ryd", deck)
+            self.assertIn("radius 17.0000000000", deck)
 
     def test_write_grid_accepts_custom_template(self):
         with tempfile.TemporaryDirectory() as tmp:

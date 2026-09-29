@@ -25,6 +25,7 @@ LOG_NH_VALUES = [21.0, 22.5, 24.0]
 
 # Fixed parameters
 LOG_DENSITY = 10.0
+LOG_L_ION = 48.0  # log(1-1000 Ryd luminosity / erg s^-1)
 SED_SLOPE = -0.8
 SED_FILE = None
 
@@ -57,6 +58,7 @@ if __name__ == "__main__":
             vturb_values=VTURB_VALUES,
             log_nh_values=LOG_NH_VALUES,
             log_density=LOG_DENSITY,
+            log_luminosity=LOG_L_ION,
             template_path=TEMPLATE_PATH,
             sed_slope=SED_SLOPE,
             sed_file=SED_FILE,
@@ -70,6 +72,7 @@ if __name__ == "__main__":
             vturb_values=VTURB_VALUES,
             log_nh_values=LOG_NH_VALUES,
             log_density=LOG_DENSITY,
+            log_luminosity=LOG_L_ION,
             template_path=TEMPLATE_PATH,
             sed_slope=SED_SLOPE,
             sed_file=SED_FILE,

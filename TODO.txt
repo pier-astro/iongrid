@@ -1,0 +1,8 @@
+# LIST OF THINGS TO DO:
+  - Add Jupyter notebooks for visualization:
+    	- Check set of stacked simulations (visualize individual spectra, overplot spectra of same set, slider).
+	- Check raw XSTAR products.
+	- Compare sets of stacked simulations.
+	- Compare sets of raw XSTAR products.
+
+  - Add a file with all XSTAR inputs used for a simulation.

@@ -5,7 +5,11 @@ from iongrid.ogip import write_ogip_table
 from settings import GRID_DIR
 
 results = GRID_DIR / "results"
-interpolation = {"logxi": "linear", "vturb": "log", "lognH": "linear"}
+interpolation = {"logxi": "linear", 
+                 "vturb": "log", 
+                 "lognH": "linear",
+                 "feabund": "linear",
+                 "gamma": "linear"}
 for cube, table, model_name, model_type in (
     ("optdepth.fits", "optdepth.emod", "xstar_abs", "exponential"),
     ("optdepth.fits", "transmission.mmod", "xstar_trans", "multiplicative"),

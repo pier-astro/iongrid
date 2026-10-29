@@ -55,7 +55,11 @@ def write_condor_submission(
     source_line = ""
     if headas_init is not None:
         init = Path(headas_init).expanduser().resolve()
-        source_line = f"source {shlex.quote(str(init))}\n"
+        source_line = (
+            'export HOME="${_CONDOR_SCRATCH_DIR:-$PWD}"\n'
+            'mkdir -p "$HOME"\n'
+            f"source {shlex.quote(str(init))}\n"
+        )
     wrapper = submit_dir / "xstar_condor_wrapper.sh"
     wrapper.write_text(
         "#!/bin/bash\nset -euo pipefail\n"

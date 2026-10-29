@@ -67,16 +67,34 @@ def write_ogip_table(
             raise ValueError(f"Input FITS cube must contain GRID and SPECTRA HDUs: {cube_path}")
         if "IGFMTVER" in hdul[0].header and int(hdul[0].header["IGFMTVER"]) != SCHEMA_VERSION:
             raise ValueError(f"Unsupported iongrid schema version in {cube_path}")
-
+        grid_data = hdul["GRID"].data
+        grid_columns = {name.upper() for name in hdul["GRID"].columns.names}
         energy = np.atleast_1d(np.asarray(hdul["GRID"].data["ENERGY"][0], dtype=float))
         logxi = np.atleast_1d(np.asarray(hdul["GRID"].data["LOGXI"][0], dtype=float))
         vturb = np.atleast_1d(np.asarray(hdul["GRID"].data["VTURB"][0], dtype=float))
         log_nh = np.atleast_1d(np.asarray(hdul["GRID"].data["LOG_NH"][0], dtype=float))
+        all_names = ["logxi", "vturb", "lognH"]
+        all_units = ["", "km/s", "cm-2"]
+        all_axes = [logxi, vturb, log_nh]
+        # Optional axes are present only when included in the GRID extension.
+        if "FEABUND" in grid_columns:
+            feabund = np.atleast_1d(np.asarray(grid_data["FEABUND"][0], dtype=float))
+            all_names.append("feabund")
+            all_units.append("xstardef")
+            all_axes.append(feabund)
+        if "GAMMA" in grid_columns:
+            gamma = np.atleast_1d(np.asarray(grid_data["GAMMA"][0], dtype=float))
+            all_names.append("gamma")
+            all_units.append("")
+            all_axes.append(gamma)
         spectra = hdul["SPECTRA"].data
-
-        expected_shape = (len(logxi), len(vturb), len(log_nh), len(energy))
+        expected_shape = tuple(len(axis) for axis in all_axes) + (len(energy),)
         if spectra.shape != expected_shape:
-            raise ValueError(f"SPECTRA shape {spectra.shape} does not match GRID axes {expected_shape}")
+            raise ValueError(
+                f"SPECTRA shape {spectra.shape} does not match "
+                f"GRID axes {expected_shape}. "
+                f"Parameter axes: {all_names}"
+            )
 
         primary = fits.PrimaryHDU()
         primary.header["HDUCLASS"] = "OGIP"
@@ -96,40 +114,30 @@ def write_ogip_table(
             if key in hdul[0].header:
                 primary.header[key] = hdul[0].header[key]
 
-        all_names = ["logxi", "vturb", "lognH"]
-        all_units = ["", "km/s", "cm-2"]
-        all_axes = [logxi, vturb, log_nh]
+        # Include only axes that actually vary as XSPEC parameters.
         par_indices = [i for i, axis in enumerate(all_axes) if len(axis) > 1]
         if not par_indices:
             raise ValueError("XSPEC table needs at least one grid axis with more than one value")
-
         par_names = [all_names[i] for i in par_indices]
         par_units = [all_units[i] for i in par_indices]
         par_axes = [all_axes[i] for i in par_indices]
-        parameters = _parameters_hdu(
-            names=par_names,
-            values=par_axes,
-            units=par_units,
-            methods=[_interpolation_method(interpolation, name) for name in par_names],
-        )
+        parameters = _parameters_hdu(names=par_names, values=par_axes, units=par_units, methods=[_interpolation_method(interpolation, name) for name in par_names])
         energies = _energies_hdu(_energy_edges(energy))
-
+        # One output spectrum for every point in the full Cartesian grid:
+        total = int(np.prod([len(axis) for axis in all_axes]))
         output_path.parent.mkdir(parents=True, exist_ok=True)
         fits.HDUList([primary, parameters, energies]).writeto(output_path, overwrite=overwrite)
-        _append_empty_spectra_table(output_path, nrows=int(np.prod([len(axis) for axis in all_axes])), npars=len(par_axes), nbins=len(energy))
-
+        _append_empty_spectra_table(output_path, nrows=total, npars=len(par_axes), nbins=len(energy))
         with fits.open(output_path, mode="update", memmap=True) as out_hdul:
             table = out_hdul["SPECTRA"].data
             row = 0
-            total = int(np.prod([len(axis) for axis in all_axes]))
-            for index in _progress(product(range(len(logxi)), range(len(vturb)), range(len(log_nh))), total):
-                i, j, k = index
+            axis_ranges = [range(len(axis)) for axis in all_axes]
+            for index in _progress(product(*axis_ranges), total):
+                # Values of the parameters that XSPEC actually interpolates.
                 values = [all_axes[n][index[n]] for n in par_indices]
-                if len(values) == 1:
-                    table["PARAMVAL"][row] = values[0]
-                else:
-                    table["PARAMVAL"][row] = values
-                spec_val = np.asarray(spectra[i, j, k, :], dtype=np.float32)
+                table["PARAMVAL"][row] = values
+                # Index all parameter dimensions, leaving energy untouched.
+                spec_val = np.asarray(spectra[index + (slice(None),)], dtype=np.float32)
                 if model_type == "multiplicative":
                     spec_val = np.exp(-spec_val)
                 table["INTPSPEC"][row] = spec_val

@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
+import sys
+
+sys.dont_write_bytecode = True
+
 from iongrid.ogip import write_ogip_table
 
 GRID_DIR = Path(__file__).resolve().parent
 RESULTS_DIR = GRID_DIR / "results"
-INTERPOLATION = {"logxi": "linear", "vturb": "log", "lognH": "linear"}  # "linear", "log", or {"logxi": "linear", "vturb": "log", ...}
+INTERPOLATION = {"logxi": "linear", "vturb": "log", "lognh": "linear"}  # "linear", "log", or {"logxi": "linear", "vturb": "log", ...}
 
 # Write the optical depth model
 write_ogip_table(

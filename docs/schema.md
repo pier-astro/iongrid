@@ -19,6 +19,18 @@ The grid coordinates in `metadata` are `point_id`, `logxi`, `vturb` and `log_nh`
 
 The CLOUDY extraction expresses full-covering emission at 10 kpc, retaining each node's simulated luminosity. It accepts CLOUDY surface intensities or already-integrated luminosities, identified from the `.out` emission-unit heading or, if absent, the retained input deck. Native luminosity-case `incident` and `transmitted` diagnostics can exceed float32; they remain float64 in `.npz` and cannot be packed into the float32 FITS cube without a separate unit conversion. The XSTAR extraction follows the predecessor XSTAR-to-XSPEC convention: bin-integrated photon flux at 1 kpc for a reference luminosity of 10³⁸ erg s⁻¹. XSTAR caches also store `emission_reference_kpc` and `emission_reference_luminosity_erg_s`. These emission normalizations are different and must be accounted for when comparing additive spectra from the two engines; see [emission normalization](emission-normalization.md). Optical depth is dimensionless.
 
+## Campaign FITS point table
+
+`Grid.pack()` writes `IGFMTVER=2` with one row per collected point in
+`PARAMS`, a common source-frame energy axis of bin centres in keV in
+`ENERGY`, and a `SPECTRA` image with shape `(n_points, n_energy)`.
+`PARAMS` records the point ID and every campaign coordinate. Spectral units
+and reference normalization follow the conventions above. OGIP export
+reconstructs bin edges from the centres and verifies that the parameter rows
+form a complete Cartesian product and include every planned point. Point caches
+and legacy FITS cubes retain
+version 1.
+
 ## FITS cube
 
 A cube stores one selected `.npz` key over a complete rectangular `(logxi, vturb, log_nh)` grid. Its primary header has `ORIGIN=iongrid`, `ENGINE=CLOUDY` or `XSTAR`, `IGFMTVER=1`, `NPZKEY` and `QUANTITY`. `REFDIST` (kpc) records the emission reference distance; XSTAR cubes also have `REFLUM` (erg s⁻¹). The `SPECTRA` image is float32 with NumPy shape `(n_logxi, n_vturb, n_log_nh, n_energy)` and `BUNIT` set by the packing recipe. The `GRID` table contains centre arrays `ENERGY` (keV), `LOGXI`, `VTURB` (km s⁻¹) and `LOG_NH`. The writer requires successful points to fill the Cartesian grid and share the energy axis.

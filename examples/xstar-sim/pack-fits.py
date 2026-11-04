@@ -1,24 +1,29 @@
 #!/usr/bin/env python3
-"""Pack the XSTAR grid into FITS: a cube (Cartesian) or a scattered table (LHS).
+"""Pack the XSTAR grid into FITS: a table of parameter rows.
 
 CLEAN in settings.py selects the versions written:
-  "raw"   optdepth.fits, linem.fits, emission.fits            
+  "raw"   optdepth.fits, linem.fits, emission.fits
   "clean" optdepth_clean.fits, linem_clean.fits, emission.fits
   "both"  all of the above
 emission.fits (the total) is never modified. Cleaned files carry NOISCLN / EPS_*
 header keywords.
 """
 
+import sys
+
+sys.dont_write_bytecode = True
+
+from iongrid import Grid
 from iongrid.xstar.clean import make_postprocess
-from iongrid.xstar.cube import write_fits_cube
-from settings import CLEAN, EPS_E, EPS_T, GRID_DIR, GRID_MODE
+from settings import CLEAN, EPS_E, EPS_T, ROOT
 
 if CLEAN not in {"raw", "clean", "both"}:
     raise SystemExit("CLEAN must be 'raw', 'clean' or 'both'")
 
-layout = "cube" if GRID_MODE == "cartesian" else "table"
-manifest = GRID_DIR / "manifest.csv"
-results = GRID_DIR / "results"
+grid = Grid.open(ROOT)
+for point, error in grid.collect().items():
+    print(f"{point}: {error}")
+results = ROOT / "results"
 
 # (file stem, npz key, quantity, unit, cleaning kind or None)
 PRODUCTS = (
@@ -29,9 +34,9 @@ PRODUCTS = (
 
 for stem, key, quantity, unit, kind in PRODUCTS:
     if CLEAN in {"raw", "both"} or kind is None:
-        write_fits_cube(manifest, results / f"{stem}.fits", npz_key=key, quantity=quantity,
-                        unit=unit, overwrite=True, layout=layout)
+        grid.pack(results / f"{stem}.fits", key=key, quantity=quantity,
+                  unit=unit, overwrite=True)
     if CLEAN in {"clean", "both"} and kind is not None:
         post, header = make_postprocess(kind, eps_T=EPS_T, eps_E=EPS_E)
-        write_fits_cube(manifest, results / f"{stem}_clean.fits", npz_key=key, quantity=quantity,
-                        unit=unit, overwrite=True, layout=layout, postprocess=post, extra_header=header)
+        grid.pack(results / f"{stem}_clean.fits", key=key, quantity=quantity,
+                  unit=unit, overwrite=True, postprocess=post, header=header)

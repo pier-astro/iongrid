@@ -24,3 +24,10 @@ examples/xstar-sim/htc_submit/
 examples/xstar-sim/results/
 examples/xstar-sim/*.log
 examples/inspect-table/products/
+
+# Shared campaign state when an example is run in place
+examples/*-sim/.iongrid.lock
+examples/*-sim/campaign.json
+examples/*-sim/input.template
+examples/*-sim/condor-*/
+examples/*-sim/seds/

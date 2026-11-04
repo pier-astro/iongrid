@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import SCHEMA_VERSION
+from . import POINTS_VERSION, SCHEMA_VERSION
 
 
 class TableInspector:
@@ -22,14 +22,18 @@ class TableInspector:
         from astropy.io import fits
 
         self.path = Path(path)
+        self.points = None
         with fits.open(self.path, memmap=True) as hdul:
             if "GRID" in hdul and "SPECTRA" in hdul:
                 self._read_cube(hdul)
+            elif all(name in hdul for name in ("PARAMS", "ENERGY", "SPECTRA")):
+                self._read_points(hdul)
             elif all(name in hdul for name in ("PARAMETERS", "ENERGIES", "SPECTRA")):
                 self._read_ogip(hdul)
             else:
                 raise ValueError("Expected an iongrid FITS cube or an OGIP table model.")
-        if self.values.shape != tuple(map(len, self.axes)) + (len(self.energy),):
+        dimensions = (len(self.points),) if self.points is not None else tuple(map(len, self.axes))
+        if self.values.shape != dimensions + (len(self.energy),):
             raise ValueError("Spectrum shape does not match parameter and energy axes.")
         if len(self.energy) < 2 or np.any(np.diff(self.energy) <= 0):
             raise ValueError("Energy bin centres must be strictly increasing.")
@@ -48,6 +52,21 @@ class TableInspector:
         self.quantity = str(header.get("QUANTITY", "Spectrum"))
         self.unit = str(hdul["SPECTRA"].header.get("BUNIT", ""))
         self.format = "iongrid cube"
+
+    def _read_points(self, hdul):
+        header = hdul[0].header
+        if header.get("IGFMTVER", SCHEMA_VERSION) not in {SCHEMA_VERSION, POINTS_VERSION}:
+            raise ValueError("Unsupported iongrid point table schema version.")
+        params = hdul["PARAMS"].data
+        columns = [name for name in params.names if name != "POINT_ID"]
+        self.names = tuple(name.lower() for name in columns)
+        self.points = np.column_stack([params[name] for name in columns])
+        self.ids = tuple(map(_text, params["POINT_ID"]))
+        self.energy = np.array(hdul["ENERGY"].data, dtype=float)
+        self.values = np.array(hdul["SPECTRA"].data)
+        self.quantity = str(header.get("QUANTITY", "Spectrum"))
+        self.unit = str(hdul["SPECTRA"].header.get("BUNIT", ""))
+        self.format = "iongrid points"
 
     def _read_ogip(self, hdul) -> None:
         """Read a regular OGIP/XSPEC table without evaluating interpolation."""
@@ -80,6 +99,12 @@ class TableInspector:
         """Return one stored spectrum selected by its exact grid coordinates."""
         if set(parameters) != set(self.names):
             raise ValueError(f"Specify every grid coordinate: {', '.join(self.names)}")
+        if self.points is not None:
+            coordinates = [parameters[name] for name in self.names]
+            matches = np.flatnonzero(np.all(self.points == coordinates, axis=1))
+            if len(matches) != 1:
+                raise ValueError("Specify the coordinates of one stored point.")
+            return self.values[matches[0]]
         indices = []
         for name, axis in zip(self.names, self.axes):
             matches = np.flatnonzero(np.isclose(axis, parameters[name], rtol=1e-6, atol=0))
@@ -106,13 +131,19 @@ class TableInspector:
             mask &= self.energy <= emax
         if not mask.any():
             raise ValueError("The requested energy range contains no table bins.")
-        sliders = [widgets.SelectionSlider(
-            options=[(f"{value:.6g}", index) for index, value in enumerate(axis)],
-            value=0, description=name, continuous_update=False,
-            style={"description_width": "initial"},
-        ) for name, axis in zip(self.names, self.axes)]
+        if self.points is not None:
+            sliders = [widgets.SelectionSlider(
+                options=list(zip(self.ids, range(len(self.ids)))), description="Point",
+                continuous_update=False,
+            )]
+        else:
+            sliders = [widgets.SelectionSlider(
+                options=[(f"{value:.6g}", index) for index, value in enumerate(axis)],
+                value=0, description=name, continuous_update=False,
+                style={"description_width": "initial"},
+            ) for name, axis in zip(self.names, self.axes)]
         fig, ax = plt.subplots(figsize=(9, 4.5))
-        line, = ax.plot(self.energy[mask], self.values[(0,) * len(self.axes)][mask])
+        line, = ax.plot(self.energy[mask], self.values[(0,) * len(sliders)][mask])
         ax.set_xlabel("Energy (keV)")
         ax.set_ylabel(ylabel or f"{self.quantity}{f' ({self.unit})' if self.unit else ''}")
         ax.set_xscale("log")
@@ -121,8 +152,9 @@ class TableInspector:
         def update(_=None):
             index = tuple(slider.value for slider in sliders)
             line.set_ydata(self.values[index][mask])
-            ax.set_title(", ".join(f"{name}={axis[i]:.6g}"
-                                   for name, axis, i in zip(self.names, self.axes, index)))
+            coordinates = (self.points[index[0]] if self.points is not None
+                           else [axis[i] for axis, i in zip(self.axes, index)])
+            ax.set_title(", ".join(f"{name}={value:.6g}" for name, value in zip(self.names, coordinates)))
             ax.relim()
             ax.autoscale_view(scalex=False)
             fig.canvas.draw_idle()

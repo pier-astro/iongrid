@@ -1,15 +1,6 @@
-#########################################################################
-# Original xstar.par file from HEASOFT v6.37
-#
-# infile,s,a,"her_bfits_1_143.pha",,,"Enter the input file's name"
-# mode,s,h,"ql",,,""
-# is the same as 
-# infile,s,ql,"her_bfits_1_143.pha",,,"Enter the input file's name"
-################################################################
-# User Adjustable Parameters
 # Columns: parameter name, data type, parameter mode, value, lower limit, upper limit, prompt
 #
-cfrac,r,h,0.,0.,1.,"covering fraction"
+cfrac,r,h,1.,0.,1.,"covering fraction"
 temperature,r,a,400.,0.,1.e4,"temperature (/10**4K)"
 lcpres,i,h,0,0,1,"constant pressure switch (1=yes, 0=no)"
 pressure,r,a,0.03,0.,1.,"pressure (dyne/cm**2)"

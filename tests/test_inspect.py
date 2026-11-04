@@ -1,4 +1,4 @@
-"""Check that the inspector reads both sides of the cube-to-OGIP workflow."""
+"""Check that the inspector reads both sides of the point-to-OGIP workflow."""
 
 from pathlib import Path
 import runpy
@@ -9,22 +9,23 @@ import pytest
 from iongrid.inspect import TableInspector
 
 
-def test_cube_and_ogip_nodes():
+def test_points_and_ogip_nodes():
     pytest.importorskip("astropy")
     recipe = Path(__file__).resolve().parents[1] / "examples/inspect-table/make_demo.py"
     runpy.run_path(str(recipe))
     output = recipe.parent / "products"
 
-    cube = TableInspector(output / "demo-tau.fits")
+    points = TableInspector(output / "demo-tau.fits")
     table = TableInspector(output / "demo-transmission.mmod")
-    assert cube.names == ("logxi", "vturb", "log_nh")
-    assert table.names == ("logxi", "vturb", "lognH")
-    assert cube.values.shape == table.values.shape == (3, 2, 2, 160)
-    optical_depth = cube.node(logxi=4.0, vturb=2000, log_nh=23.0)
-    transmission = table.node(logxi=4.0, vturb=2000, lognH=23.0)
+    assert points.names == ("logxi", "vturb", "lognh")
+    assert table.names == ("logxi", "vturb", "lognh")
+    assert points.values.shape == (12, 160)
+    assert table.values.shape == (3, 2, 2, 160)
+    optical_depth = points.node(logxi=4.0, vturb=2000, lognh=23.0)
+    transmission = table.node(logxi=4.0, vturb=2000, lognh=23.0)
     np.testing.assert_allclose(transmission, np.exp(-optical_depth), rtol=1e-6)
     with pytest.raises(ValueError, match="not a stored grid coordinate"):
-        table.node(logxi=4.2, vturb=2000, lognH=23.0)
+        table.node(logxi=4.2, vturb=2000, lognh=23.0)
 
 
 def test_slider_selects_another_stored_node(monkeypatch):

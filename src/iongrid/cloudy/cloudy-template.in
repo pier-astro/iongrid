@@ -9,6 +9,7 @@ radius {log_radius}
 constant density  
 turbulence {vturb} km/s no pressure  
 abundances old solar 84
+{iron}
 #
 # --- Stopping Criteria (Dynamic Slab Boundary) ---  
 stop column density {log_nh} log  # stopping column density axis

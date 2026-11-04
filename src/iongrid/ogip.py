@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import SCHEMA_VERSION
+from . import POINTS_VERSION, SCHEMA_VERSION
 
 
 def write_ogip_table(
@@ -63,38 +63,58 @@ def write_ogip_table(
         raise ValueError(f"Input is not a readable packed FITS cube: {cube_path}") from e
 
     with hdul:
-        if "GRID" not in hdul or "SPECTRA" not in hdul:
-            raise ValueError(f"Input FITS cube must contain GRID and SPECTRA HDUs: {cube_path}")
-        if "IGFMTVER" in hdul[0].header and int(hdul[0].header["IGFMTVER"]) != SCHEMA_VERSION:
+        if "IGFMTVER" in hdul[0].header and int(hdul[0].header["IGFMTVER"]) not in {SCHEMA_VERSION, POINTS_VERSION}:
             raise ValueError(f"Unsupported iongrid schema version in {cube_path}")
-        grid_data = hdul["GRID"].data
-        grid_columns = {name.upper() for name in hdul["GRID"].columns.names}
-        energy = np.atleast_1d(np.asarray(hdul["GRID"].data["ENERGY"][0], dtype=float))
-        logxi = np.atleast_1d(np.asarray(hdul["GRID"].data["LOGXI"][0], dtype=float))
-        vturb = np.atleast_1d(np.asarray(hdul["GRID"].data["VTURB"][0], dtype=float))
-        log_nh = np.atleast_1d(np.asarray(hdul["GRID"].data["LOG_NH"][0], dtype=float))
-        all_names = ["logxi", "vturb", "lognH"]
-        all_units = ["", "km/s", "cm-2"]
-        all_axes = [logxi, vturb, log_nh]
-        # Optional axes are present only when included in the GRID extension.
-        if "FEABUND" in grid_columns:
-            feabund = np.atleast_1d(np.asarray(grid_data["FEABUND"][0], dtype=float))
-            all_names.append("feabund")
-            all_units.append("xstardef")
-            all_axes.append(feabund)
-        if "GAMMA" in grid_columns:
-            gamma = np.atleast_1d(np.asarray(grid_data["GAMMA"][0], dtype=float))
-            all_names.append("gamma")
-            all_units.append("")
-            all_axes.append(gamma)
-        spectra = hdul["SPECTRA"].data
-        expected_shape = tuple(len(axis) for axis in all_axes) + (len(energy),)
-        if spectra.shape != expected_shape:
-            raise ValueError(
-                f"SPECTRA shape {spectra.shape} does not match "
-                f"GRID axes {expected_shape}. "
-                f"Parameter axes: {all_names}"
-            )
+        row_index = None
+        if all(name in hdul for name in ("PARAMS", "ENERGY", "SPECTRA")):
+            energy = np.asarray(hdul["ENERGY"].data, dtype=float)
+            params = hdul["PARAMS"]
+            if hdul[0].header.get("NPLANNED", len(params.data)) != len(params.data):
+                raise ValueError("OGIP export requires all points in the campaign")
+            columns = [column for column in params.columns if column.name != "POINT_ID"]
+            all_names = [column.name.lower() for column in columns]
+            all_units = [column.unit or "" for column in columns]
+            coordinates = [np.asarray(params.data[column.name], dtype=float) for column in columns]
+            all_axes = [np.unique(values) for values in coordinates]
+            indices = zip(*(np.searchsorted(axis, values) for axis, values in zip(all_axes, coordinates)))
+            row_index = {index: row for row, index in enumerate(indices)}
+            if len(row_index) != len(params.data) or len(row_index) != int(np.prod(list(map(len, all_axes)))):
+                raise ValueError("OGIP export requires a complete Cartesian set with unique rows")
+            spectra = hdul["SPECTRA"].data
+            if spectra.shape != (len(row_index), len(energy)):
+                raise ValueError("SPECTRA shape does not match PARAMS and ENERGY")
+        elif "GRID" in hdul and "SPECTRA" in hdul:
+            grid_data = hdul["GRID"].data
+            grid_columns = {name.upper() for name in hdul["GRID"].columns.names}
+            energy = np.atleast_1d(np.asarray(hdul["GRID"].data["ENERGY"][0], dtype=float))
+            logxi = np.atleast_1d(np.asarray(hdul["GRID"].data["LOGXI"][0], dtype=float))
+            vturb = np.atleast_1d(np.asarray(hdul["GRID"].data["VTURB"][0], dtype=float))
+            log_nh = np.atleast_1d(np.asarray(hdul["GRID"].data["LOG_NH"][0], dtype=float))
+            all_names = ["logxi", "vturb", "lognH"]
+            all_units = ["", "km/s", "cm-2"]
+            all_axes = [logxi, vturb, log_nh]
+            # Optional axes are present only when included in the GRID extension.
+            if "FEABUND" in grid_columns:
+                feabund = np.atleast_1d(np.asarray(grid_data["FEABUND"][0], dtype=float))
+                all_names.append("feabund")
+                all_units.append("xstardef")
+                all_axes.append(feabund)
+            if "GAMMA" in grid_columns:
+                gamma = np.atleast_1d(np.asarray(grid_data["GAMMA"][0], dtype=float))
+                all_names.append("gamma")
+                all_units.append("")
+                all_axes.append(gamma)
+            spectra = hdul["SPECTRA"].data
+            expected_shape = tuple(len(axis) for axis in all_axes) + (len(energy),)
+            if spectra.shape != expected_shape:
+                raise ValueError(
+                    f"SPECTRA shape {spectra.shape} does not match "
+                    f"GRID axes {expected_shape}. "
+                    f"Parameter axes: {all_names}"
+                )
+
+        else:
+            raise ValueError(f"Expected an iongrid point table or cube: {cube_path}")
 
         primary = fits.PrimaryHDU()
         primary.header["HDUCLASS"] = "OGIP"
@@ -135,12 +155,13 @@ def write_ogip_table(
             for index in _progress(product(*axis_ranges), total):
                 # Values of the parameters that XSPEC actually interpolates.
                 values = [all_axes[n][index[n]] for n in par_indices]
-                table["PARAMVAL"][row] = values
+                table["PARAMVAL"][row] = values[0] if len(values) == 1 else values
                 # Index all parameter dimensions, leaving energy untouched.
-                spec_val = np.asarray(spectra[index + (slice(None),)], dtype=np.float32)
+                spec_index = row_index[index] if row_index is not None else index
+                spec_val = np.asarray(spectra[spec_index], dtype=np.float32)
                 if model_type == "multiplicative":
                     spec_val = np.exp(-spec_val)
-                table["INTPSPEC"][row] = spec_val
+                table["INTPSPEC"][row] = spec_val[0] if len(energy) == 1 else spec_val
                 row += 1
             out_hdul.flush()
 

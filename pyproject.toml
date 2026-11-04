@@ -20,3 +20,4 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "iongrid.cloudy" = ["cloudy-template.in"]
+"iongrid.xstar" = ["xstar.par"]

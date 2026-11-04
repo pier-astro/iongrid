@@ -1,47 +1,23 @@
-#!/usr/bin/env python3
+"""Prepare and run the campaign locally."""
+
 import sys
-from pathlib import Path
-from iongrid.cloudy.grid import run_grid
 
-# ---------------------------------------------------------
-# Grid Configuration
-# ---------------------------------------------------------
-LOGXI_VALUES = [3.0, 4.75, 6.5]
-VTURB_VALUES = [100.0, 550.0, 1000.0]
-LOG_NH_VALUES = [21.0, 22.5, 24.0]
+sys.dont_write_bytecode = True
 
-# Fixed parameters
-LOG_DENSITY = 10.0  # log(cm^-3)
-LOG_L_ION = 48.0    # log(1-1000 Ryd luminosity / erg s^-1)
-SED_SLOPE = -0.8    # Power law slope (defaults to -0.8)
-SED_FILE = None     # Path to a custom SED file (overrides SED_SLOPE if provided)
+import settings
+from iongrid import Grid
 
-# ---------------------------------------------------------
-# Execution Configuration
-# ---------------------------------------------------------
-CLOUDY_PATH = "path/to/cloudy.exe"
-WORKERS = 5
-LIMIT = None
-TEMPLATE_PATH = None
-GRID_DIR = Path(__file__).resolve().parent
+WORKERS = 4
+SELECT = "ready"  # Use "failed" to retry failed simulations.
+TIMEOUT = None
 
-if __name__ == "__main__":
-    action = sys.argv[1] if len(sys.argv) > 1 else "run"
-    
-    # Execute setup, run, refresh, or packnpz action
-    run_grid(
-        grid_dir=GRID_DIR,
-        action=action,
-        logxi_values=LOGXI_VALUES,
-        vturb_values=VTURB_VALUES,
-        log_nh_values=LOG_NH_VALUES,
-        log_density=LOG_DENSITY,
-        log_luminosity=LOG_L_ION,
-        template_path=TEMPLATE_PATH,
-        cloudy_path=CLOUDY_PATH,
-        workers=WORKERS,
-        limit=LIMIT,
-        make_binaries=True,
-        sed_slope=SED_SLOPE,
-        sed_file=SED_FILE,
-    )
+if (settings.ROOT / "manifest.csv").is_file():
+    grid = Grid.open(settings.ROOT)
+else:
+    grid = Grid.create(settings.ROOT, engine=settings.ENGINE, template=settings.TEMPLATE,
+                       params=settings.PARAMS, sed=settings.SED)
+
+print(grid.run(workers=WORKERS, select=SELECT, executable=settings.EXECUTABLE, timeout=TIMEOUT))
+for point, error in grid.collect().items():
+    print(f"{point}: {error}")
+print(grid.status())

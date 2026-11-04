@@ -1,15 +1,34 @@
-#!/usr/bin/env python3
-"""Set up, execute or compile the XSTAR grid in this directory."""
+"""Prepare and run the campaign locally."""
 
 import sys
-from iongrid.xstar.grid import run_grid
-from settings import GRID_DIR, SETUP, XSTAR_PATH
+
+sys.dont_write_bytecode = True
+
+import settings
+from iongrid import Grid
 
 WORKERS = 4
-LIMIT = None  # Set to 1 for a trial run.
-TIMEOUT = None  # Seconds per point, or None to wait for convergence.
+SELECT = "ready"  # Use "failed" to retry failed simulations.
+TIMEOUT = None
 
-if __name__ == "__main__":
-    action = sys.argv[1] if len(sys.argv) > 1 else "setup"
-    run_grid(GRID_DIR, action, workers=WORKERS, limit=LIMIT,
-             xstar_path=XSTAR_PATH, timeout=TIMEOUT, **SETUP)
+if (settings.ROOT / "manifest.csv").is_file():
+    grid = Grid.open(settings.ROOT)
+else:
+    grid = Grid.create(settings.ROOT,
+                       engine=settings.ENGINE,
+                       template=settings.TEMPLATE,
+                       params=settings.PARAMS,
+                       sed=settings.SED)
+
+print(
+    grid.run(
+        workers=WORKERS,
+        select=SELECT, 
+        executable=settings.EXECUTABLE,
+        timeout=TIMEOUT,
+        )
+    )
+
+for point, error in grid.collect().items():
+    print(f"{point}: {error}")
+print(grid.status())

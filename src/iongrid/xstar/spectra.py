@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 
 from iongrid import SCHEMA_VERSION
-from .grid import XstarPoint
 
 D_1KPC_CM = 3.085677581491367e21
 ERG_PER_EV = 1.602176634e-12
@@ -36,7 +35,8 @@ def _bin_widths(energy: np.ndarray) -> np.ndarray:
     return np.diff(edges)
 
 
-def compile_node(node_dir: str | Path, point: XstarPoint) -> Path:
+def compile_node(node_dir: str | Path, *, logxi: float, vturb: float,
+                 lognh: float, logdensity: float) -> Path:
     """Pack total optical depth and outward emission at XSTAR's native energy sampling.
 
     Emission follows the predecessor xstar2xspec convention: bin-integrated
@@ -73,11 +73,11 @@ def compile_node(node_dir: str | Path, point: XstarPoint) -> Path:
     emt_continuum = np.minimum(np.maximum(raw_continuum, 0), emitted)
     emt_lines = emitted - emt_continuum
     metadata = np.array(
-        (point.point_id, point.logxi, point.vturb, point.log_nh, point.log_density, luminosity_38),
+        (node_dir.name, logxi, vturb, lognh, logdensity, luminosity_38),
         dtype=[("point_id", "U60"), ("logxi", "f8"), ("vturb", "f8"),
                ("log_nh", "f8"), ("log_density", "f8"), ("luminosity_38", "f8")],
     )
-    destination = node_dir / f"{point.point_id}.npz"
+    destination = node_dir / f"{node_dir.name}.npz"
     np.savez_compressed(
         destination, schema_version=np.int16(SCHEMA_VERSION),
         energy=(energy_ev / 1000).astype(np.float32),

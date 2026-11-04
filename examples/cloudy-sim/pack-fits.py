@@ -1,30 +1,32 @@
 #!/usr/bin/env python3
-from pathlib import Path
+import sys
 
-from iongrid.cloudy.cube import write_fits_cube
+sys.dont_write_bytecode = True
 
-GRID_DIR = Path(__file__).resolve().parent
-MANIFEST = GRID_DIR / "manifest.csv"
+from iongrid import Grid
+from settings import ROOT
+
+grid = Grid.open(ROOT)
+for point, error in grid.collect().items():
+    print(f"{point}: {error}")
 
 # .npz keys : tau_absorption, tau_scattering, tau_total,
 #             emt_continuum, emt_lines, emt_total,
 #             incident, transmitted
 
-# Write a unique absorption FITS cube
-write_fits_cube(
-    MANIFEST,
-    GRID_DIR / 'results' / 'optdepth.fits',
-    npz_key='tau_absorption',
+# Write a unique absorption FITS table
+grid.pack(
+    ROOT / 'results' / 'optdepth.fits',
+    key='tau_absorption',
     quantity='ABSORPTION OPTICAL DEPTH',
     unit='dimensionless',
     overwrite=True,
 )
 
-# Write a unique emission FITS cube
-write_fits_cube(
-    MANIFEST,
-    GRID_DIR / 'results' / 'linem.fits',
-    npz_key='emt_lines',
+# Write a unique emission FITS table
+grid.pack(
+    ROOT / 'results' / 'linem.fits',
+    key='emt_lines',
     quantity='EMISSION LINES',
     unit='ph cm-2 s-1',
     overwrite=True,

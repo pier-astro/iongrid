@@ -18,7 +18,7 @@ class CloudyEmissionUnitsTest(unittest.TestCase):
         observed = []
         with tempfile.TemporaryDirectory() as tmp:
             for mode, scale in (("intensity", 1.0), ("luminosity", 4 * np.pi * radius_cm**2)):
-                point_id = "xi3p000_vt0000_nh21p000"
+                point_id = "point"
                 directory = Path(tmp) / mode / point_id
                 directory.mkdir(parents=True)
                 command = "intensity 1 range 1 to 1000 Ryd" if mode == "intensity" else "table agn"
@@ -38,7 +38,7 @@ class CloudyEmissionUnitsTest(unittest.TestCase):
                 (directory / f"{point_id}.raw").write_text(
                     "0.0007 0 0 0 0 0 0\n102.5 0 0 0 0 0 0\n", encoding="utf-8"
                 )
-                compile_node(directory, energy_grid=energy)
+                compile_node(directory, logxi=3, vturb=0, lognh=21, energy_grid=energy)
                 with np.load(directory / f"{point_id}.npz") as node:
                     observed.append(node["emt_continuum"].copy())
                     if mode == "luminosity":

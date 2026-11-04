@@ -262,19 +262,11 @@ def broaden_lines(
     return line_density
 
 
-def compile_node(node_dir: str | Path, energy_grid: np.ndarray = ENERGY_GRID):
+def compile_node(node_dir: str | Path, *, logxi: float, vturb: float, lognh: float,
+                 energy_grid: np.ndarray = ENERGY_GRID) -> Path:
     """Compile raw Cloudy output ASCII files of a node into a structured compressed binary .npz file."""
     node_dir = Path(node_dir)
     point_id = node_dir.name
-
-    # 1. Parse parameters from directory name
-    parts = point_id.split('_')
-    if len(parts) != 3 or not parts[0].startswith("xi") or not parts[1].startswith("vt") or not parts[2].startswith("nh"):
-        raise ValueError(f"Directory name {point_id} does not match expected format xi[value]_vt[value]_nh[value]")
-
-    logxi = float(parts[0][2:].replace('p', '.'))
-    vturb = float(parts[1][2:])
-    log_nh = float(parts[2][2:].replace('p', '.'))
 
     # 2. Parse log_density from input deck file (.in)
     in_file = node_dir / f"{point_id}.in"
@@ -302,7 +294,7 @@ def compile_node(node_dir: str | Path, energy_grid: np.ndarray = ENERGY_GRID):
             if marker is None or len(commands) > 1:
                 raise ValueError(f"Cannot identify CLOUDY emission units in {out_file} or {in_file}; add '# iongrid emission input: intensity' (or luminosity) to the deck")
             emission_input = marker.group(1).lower()
-    hden_match = re.search(r"hden\s+([0-9.-]+)\s+log", in_text)
+    hden_match = re.search(r"hden\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s+log", in_text)
     if not hden_match:
         raise ValueError(f"Could not parse hden from {in_file}")
     log_density = float(hden_match.group(1))
@@ -426,7 +418,7 @@ def compile_node(node_dir: str | Path, energy_grid: np.ndarray = ENERGY_GRID):
 
     # 11. Create metadata record
     metadata = np.array(
-        (point_id, logxi, vturb, log_nh, log_density, temperature),
+        (point_id, logxi, vturb, lognh, log_density, temperature),
         dtype=[
             ('point_id', 'U50'),
             ('logxi', 'f8'),
@@ -453,3 +445,5 @@ def compile_node(node_dir: str | Path, energy_grid: np.ndarray = ENERGY_GRID):
         transmitted=trans_interp,
         metadata=metadata,
     )
+
+    return npz_path

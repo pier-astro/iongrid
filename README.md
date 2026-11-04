@@ -26,6 +26,10 @@ The output path is `manifest.csv` → `points/<point_id>/*.npz` → `results/*.f
 
 ## Formats and code
 
+To browse stored spectra interactively, install the `inspect` extra and open
+the [table-inspection example](examples/inspect-table/README.md). Its sliders
+work with both iongrid FITS cubes and OGIP table models.
+
 - [`docs/schema.md`](docs/schema.md): common node, cube and OGIP output schema, units and version marker.
 - [`docs/cloudy-outputs.md`](docs/cloudy-outputs.md): CLOUDY files read by the compiler and the resolution/runtime choices in the supplied template.
 - [`docs/xstar-outputs.md`](docs/xstar-outputs.md): XSTAR files read by the compiler, conversions and reference normalization.

@@ -32,3 +32,12 @@ A cube stores one selected `.npz` key over a complete rectangular `(logxi, vturb
 - `model_type="additive"`: bin-integrated photon flux for an XSPEC `atable` (`.amod`), in photons cm⁻² s⁻¹ at the reference stated by the cube header, before table normalization.
 
 The primary header also carries OGIP identifiers and `XFXP0001` for the explicit model type. Energy-bin edges are reconstructed from the cube's energy centres.
+
+## Interactive inspection
+
+`iongrid.inspect.TableInspector(path)` reads either a packed FITS cube or a
+regular OGIP table and displays the stored spectra with one slider per grid
+parameter in Jupyter. It does not interpolate between nodes. Cube spectra
+retain the quantity named by `QUANTITY` and unit in `BUNIT`; OGIP values use
+the table model convention above. Install `iongrid[inspect]` for the widget
+dependencies and see the [small worked example](../examples/inspect-table/README.md).

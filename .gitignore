@@ -6,6 +6,7 @@ build/
 dist/
 .venv/
 .DS_Store
+.ipynb_checkpoints/
 runs/
 /.agents/
 /AGENTS.md
@@ -22,3 +23,4 @@ examples/xstar-sim/points/
 examples/xstar-sim/htc_submit/
 examples/xstar-sim/results/
 examples/xstar-sim/*.log
+examples/inspect-table/products/

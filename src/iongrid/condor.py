@@ -12,7 +12,7 @@ from .grid import Grid
 
 
 def write(grid, *, batch=16, fragment=None, text=None, init=None, select="ready",
-          seed=0, executable=None, python="python3"):
+          seed=0, executable=None, python=sys.executable):
     """Write a native submit file. The caller submits it with condor_submit."""
     if batch < 1 or (fragment is not None and text is not None):
         raise ValueError("Use a positive batch size and at most one submit fragment")
@@ -30,14 +30,17 @@ def write(grid, *, batch=16, fragment=None, text=None, init=None, select="ready"
         (directory / f"{number}.json").write_text(json.dumps(ids))
 
     wrapper = directory / "worker.sh"
-    setup = f"source {shlex.quote(str(Path(init).resolve()))}\n" if init is not None else ""
+    src = Path(__file__).resolve().parent.parent
+    setup = ('export HOME="${_CONDOR_SCRATCH_DIR:-/tmp}"\n'
+             + (f"source {shlex.quote(str(Path(init).resolve()))}\n" if init is not None else "")
+             + f"export PYTHONPATH={shlex.quote(str(src))}${{PYTHONPATH:+:$PYTHONPATH}}\n")
     command = shlex.join([str(python), "-B", "-m", "iongrid.condor", str(grid.root)])
     options = shlex.join([select, str(executable or grid.config["engine"])])
     wrapper.write_text(f'#!/bin/bash\nset -e\n{setup}{command} "$1.json" {options}\n')
     wrapper.chmod(0o755)
     submit = directory / "grid.sub"
     submit.write_text(
-        f'executable = "{wrapper}"\ninitialdir = "{directory}"\n'
+        f'executable = {wrapper}\ninitialdir = {directory}\n'
         "arguments = $(Process)\n"
         "output = out.$(ClusterId).$(Process)\n"
         "error = err.$(ClusterId).$(Process)\n"

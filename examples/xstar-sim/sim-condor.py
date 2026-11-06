@@ -8,14 +8,16 @@ from iongrid import Grid, condor
 
 ACTION = "write"  # "write" or "refresh".
 
-BATCH = 4
+BATCH = 1
 SELECT = "ready"  # Use "failed" to retry failed simulations.
 
-INIT = None  # Path to a shell script that configures the engine on workers.
+INIT = "/data-fast/dragon/software/heasoft-6.36/x86_64-pc-linux-gnu-libc2.39/headas-init.sh"  # Path to a shell script that configures the engine on workers.
 
 DIRECTIVES = """\
 request_cpus = 1
 request_memory = 3G
+max_materialize = 100
+environment = "HEADAS=/data-fast/dragon/software/heasoft-6.36/x86_64-pc-linux-gnu-libc2.39"
 """
 
 if ACTION == "write":

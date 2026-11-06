@@ -18,6 +18,7 @@ request_cpus = 1
 request_memory = 3G
 max_materialize = 100
 environment = "HEADAS=/data-fast/dragon/software/heasoft-6.36/x86_64-pc-linux-gnu-libc2.39"
+requirements = "(OpSysMajorVer == 24)"
 """
 
 if ACTION == "write":
